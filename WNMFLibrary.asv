@@ -6,7 +6,7 @@ classdef WNMFLibrary
     
     methods (Static) 
         %%
-        function [ G , F ] = EM_WMU_NMF( W ,X , G , F , Iter_max_M_step, Iter_max_E_step )
+        function X = EM_WMU_NMF( W ,X , G , F , Iter_max_M_step, Iter_max_E_step, Nesterov_Max_Iterations,Nesterov_Min_Iterations )
             initf = norm( W.*(X-G*F) , 'fro' )^2;
             W2 = W.^2;
             [n1,n2]=size(W);
@@ -27,13 +27,35 @@ classdef WNMFLibrary
             fprintf('\n### Elapse time: %d sec.\n###   Initial objective value: %d\n###   Objective value: %d \n' , t , initf , f );
 
         end
-        
-        function [ G , F ] = EM_WNE_NMF( W ,X , G , F , Iter_max_E_step )
+        %%
+        function X = EM_WNE_NMF( W ,X , G , F , Iter_max_E_step )
+            initf = norm( W.*(X-G*F) , 'fro' )^2;
+            W2 = W.^2;
+            WX = W2.*X;
+            [n1,n2]=size(W);
+            I=ones(n1,n2);
+            reducedDim=size(G,2);
+            tic;
+            %E Step
+            for i=1:Iter_max_E_step 
+              Result=WX+ (I-W).*(G*F); 
+                for j=1:10
+                  %M Step
+                  [G , F ,it,ela,HIS]=NeNMF(Result,reducedDim,'W_INIT',G,'H_INIT',F,'MAX_ITER',100,'MIN_ITER',5);
+                end
+            end
+            t = toc;
+            f = norm( W.*(Result-G*F) , 'fro' )^2;
+            fprintf('\n### Elapse time: %d sec.\n###   Initial objective value: %d\n###   Objective value: %d \n' , t , initf , f );
+        end
+
+            %%
+        function X = EM_L1R_WNE_NMF( W ,X , G , F , Iter_max_E_step )
             initf = norm( W.*(X-G*F) , 'fro' )^2;
             W2 = W.^2;
             [n1,n2]=size(W);
             I=ones(n1,n2);
-            reducedDim=50;
+            reducedDim=size(G,2);
             tic;
             %E Step
             for i=1:Iter_max_E_step
@@ -47,9 +69,52 @@ classdef WNMFLibrary
             t = toc;
             f = norm( W.*(X-G*F) , 'fro' )^2;
             fprintf('\n### Elapse time: %d sec.\n###   Initial objective value: %d\n###   Objective value: %d \n' , t , initf , f );
-         end
+        end
 
+          %%
+        function X = EM_L2R_WNE_NMF( W ,X , G , F , Iter_max_E_step )
+            initf = norm( W.*(X-G*F) , 'fro' )^2;
+            W2 = W.^2;
+            [n1,n2]=size(W);
+            I=ones(n1,n2);
+            reducedDim=size(G,2);
+            tic;
+            %E Step
+            for i=1:Iter_max_E_step
+              WX = W2.*X;
+              Xnew=WX+ (I-W).*(G*F); 
 
+              %M Step
+              [G , F ,it,ela,HIS]=NeNMF(Xnew,reducedDim,'TYPE','L2R');
+              X=Xnew;
+            end
+            t = toc;
+            f = norm( W.*(X-G*F) , 'fro' )^2;
+            fprintf('\n### Elapse time: %d sec.\n###   Initial objective value: %d\n###   Objective value: %d \n' , t , initf , f );
+        end
+
+    %%
+        function X = EM_GWNE_NMF( W ,X , G , F , Iter_max_E_step )
+            initf = norm( W.*(X-G*F) , 'fro' )^2;
+            W2 = W.^2;
+            [n1,n2]=size(W);
+            I=ones(n1,n2);
+            reducedDim=size(G,2);
+            tic;
+            S=constructW(X);
+            %E Step
+            for i=1:Iter_max_E_step
+              WX = W2.*X;
+              Xnew=WX+ (I-W).*(G*F); 
+              
+              %M Step
+              [G , F ,it,ela,HIS]=NeNMF(Xnew,reducedDim,'TYPE','MR','S_MTX',S);
+              X=Xnew;
+            end
+            t = toc;
+            f = norm( W.*(X-G*F) , 'fro' )^2;
+            fprintf('\n### Elapse time: %d sec.\n###   Initial objective value: %d\n###   Objective value: %d \n' , t , initf , f );
+        end
     end
 end
 
